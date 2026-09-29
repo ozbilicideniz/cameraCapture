@@ -62,13 +62,6 @@
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="stopButton">
-       <property name="text">
-        <string>STOP VIDEO</string>
-       </property>
-      </widget>
-     </item>
-     <item>
       <widget class="QPushButton" name="exportButton">
        <property name="text">
         <string>EXPORT</string>

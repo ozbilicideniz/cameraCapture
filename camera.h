@@ -49,6 +49,7 @@ private:
     GstPad *recordTeePad = nullptr;
 
     bool recording = false;
+    bool exportClicked = false;
 };
 
 #endif // CAMERA_H

@@ -60,7 +60,6 @@ camera::camera(QWidget *parent)
     ui->cameraButton->setStyleSheet(buttonStyle);
     ui->captureButton->setStyleSheet(buttonStyle);
     ui->recordButton->setStyleSheet(buttonStyle);
-    ui->stopButton->setStyleSheet(buttonStyle);
     ui->exportButton->setStyleSheet(buttonStyle);
 
     ui->cameraWidget->winId();
@@ -186,143 +185,6 @@ camera::camera(QWidget *parent)
                 }
             });
 
-    connect(ui->stopButton, &QPushButton::clicked,
-            this, [this]()
-            {
-                if (!recording)
-                    return;
-
-                qDebug() << "STOPPING RECORDING";
-
-                // Don't allow another recording while this MP4 is finishing
-                ui->recordButton->setEnabled(false);
-                ui->stopButton->setEnabled(false);
-
-
-                GstPad *fileSinkPad =
-                    gst_element_get_static_pad(
-                        recordFileSink,
-                        "sink");
-
-                gst_pad_add_probe(
-                    fileSinkPad,
-                    GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
-
-                    [](GstPad *,
-                       GstPadProbeInfo *info,
-                       gpointer userData) -> GstPadProbeReturn
-                    {
-                        camera *self =
-                            static_cast<camera *>(userData);
-
-                        GstEvent *event =
-                            GST_PAD_PROBE_INFO_EVENT(info);
-
-                        if (event &&
-                            GST_EVENT_TYPE(event) == GST_EVENT_EOS)
-                        {
-                            qDebug() << "MP4 FINISHED";
-
-                            QMetaObject::invokeMethod(
-                                self,
-                                [self]()
-                                {
-                                    qDebug() << "CLEANING OLD RECORDING";
-
-                                    gst_element_set_state(
-                                        self->recordQueue,
-                                        GST_STATE_NULL);
-
-                                    gst_element_set_state(
-                                        self->recordEncoder,
-                                        GST_STATE_NULL);
-
-                                    gst_element_set_state(
-                                        self->recordParser,
-                                        GST_STATE_NULL);
-
-                                    gst_element_set_state(
-                                        self->recordMuxer,
-                                        GST_STATE_NULL);
-
-                                    gst_element_set_state(
-                                        self->recordFileSink,
-                                        GST_STATE_NULL);
-
-                                    gst_bin_remove_many(
-                                        GST_BIN(self->pipeline),
-                                        self->recordQueue,
-                                        self->recordEncoder,
-                                        self->recordParser,
-                                        self->recordMuxer,
-                                        self->recordFileSink,
-                                        nullptr);
-
-                                    self->recordQueue = nullptr;
-                                    self->recordEncoder = nullptr;
-                                    self->recordParser = nullptr;
-                                    self->recordMuxer = nullptr;
-                                    self->recordFileSink = nullptr;
-
-                                    self->recording = false;
-
-                                    self->ui->recordButton->setEnabled(true);
-                                    self->ui->stopButton->setEnabled(false);
-
-                                    qDebug() << "READY FOR ANOTHER RECORDING";
-                                },
-                                Qt::QueuedConnection);
-
-                            return GST_PAD_PROBE_REMOVE;
-                        }
-
-                        return GST_PAD_PROBE_OK;
-                    },
-                    this,
-                    nullptr);
-
-                gst_object_unref(fileSinkPad);
-
-
-                // Detach recording branch from tee
-                GstPad *queueSinkPad =
-                    gst_element_get_static_pad(
-                        recordQueue,
-                        "sink");
-
-                gst_pad_unlink(
-                    recordTeePad,
-                    queueSinkPad);
-
-                gst_element_release_request_pad(
-                    tee,
-                    recordTeePad);
-
-                gst_object_unref(recordTeePad);
-                recordTeePad = nullptr;
-
-                gst_object_unref(queueSinkPad);
-
-                qDebug() << "RECORDING BRANCH DETACHED FROM TEE";
-
-
-                // Send EOS so MP4 can finish
-                GstPad *encoderSinkPad =
-                    gst_element_get_static_pad(
-                        recordEncoder,
-                        "sink");
-
-                gboolean eosSent =
-                    gst_pad_send_event(
-                        encoderSinkPad,
-                        gst_event_new_eos());
-
-                gst_object_unref(encoderSinkPad);
-
-                qDebug() << "EOS SENT TO DETACHED RECORDING BRANCH:"
-                         << eosSent;
-            });
-
     connect(ui->exportButton, &QPushButton::clicked, this, [this](){
 
         if(mediaViewer->isVisible()){
@@ -390,94 +252,301 @@ camera::camera(QWidget *parent)
     connect(ui->recordButton, &QPushButton::clicked,
             this, [this]()
             {
+                // ==========================================
+                // STOP RECORDING
+                // ==========================================
                 if (recording)
+                {
+                    qDebug() << "STOPPING RECORDING";
+
+                    // Prevent another click while MP4 is finishing
+                    ui->recordButton->setEnabled(false);
+                    ui->recordButton->setText("SAVING...");
+
+                    // Watch fileSink for EOS.
+                    // EOS means mp4mux has finished the MP4 file.
+                    GstPad *fileSinkPad =
+                        gst_element_get_static_pad(
+                            recordFileSink,
+                            "sink");
+
+                    gst_pad_add_probe(
+                        fileSinkPad,
+                        GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM,
+
+                        [](GstPad *,
+                           GstPadProbeInfo *info,
+                           gpointer userData) -> GstPadProbeReturn
+                        {
+                            camera *self =
+                                static_cast<camera *>(userData);
+
+                            GstEvent *event =
+                                GST_PAD_PROBE_INFO_EVENT(info);
+
+                            if (event &&
+                                GST_EVENT_TYPE(event) == GST_EVENT_EOS)
+                            {
+                                qDebug() << "MP4 FINISHED";
+
+                                QMetaObject::invokeMethod(
+                                    self,
+                                    [self]()
+                                    {
+                                        qDebug() << "CLEANING OLD RECORDING";
+
+                                        gst_element_set_state(
+                                            self->recordQueue,
+                                            GST_STATE_NULL);
+
+                                        gst_element_set_state(
+                                            self->recordEncoder,
+                                            GST_STATE_NULL);
+
+                                        gst_element_set_state(
+                                            self->recordParser,
+                                            GST_STATE_NULL);
+
+                                        gst_element_set_state(
+                                            self->recordMuxer,
+                                            GST_STATE_NULL);
+
+                                        gst_element_set_state(
+                                            self->recordFileSink,
+                                            GST_STATE_NULL);
+
+                                        gst_bin_remove_many(
+                                            GST_BIN(self->pipeline),
+                                            self->recordQueue,
+                                            self->recordEncoder,
+                                            self->recordParser,
+                                            self->recordMuxer,
+                                            self->recordFileSink,
+                                            nullptr);
+
+                                        self->recordQueue = nullptr;
+                                        self->recordEncoder = nullptr;
+                                        self->recordParser = nullptr;
+                                        self->recordMuxer = nullptr;
+                                        self->recordFileSink = nullptr;
+
+                                        self->recording = false;
+
+                                        self->ui->recordButton->setText("RECORD");
+                                        self->ui->recordButton->setEnabled(true);
+
+                                        qDebug() << "READY FOR ANOTHER RECORDING";
+                                    },
+                                    Qt::QueuedConnection);
+
+                                return GST_PAD_PROBE_REMOVE;
+                            }
+
+                            return GST_PAD_PROBE_OK;
+                        },
+                        this,
+                        nullptr);
+
+                    gst_object_unref(fileSinkPad);
+
+
+                    // Detach recording branch from tee
+                    GstPad *queueSinkPad =
+                        gst_element_get_static_pad(
+                            recordQueue,
+                            "sink");
+
+                    gst_pad_unlink(
+                        recordTeePad,
+                        queueSinkPad);
+
+                    gst_element_release_request_pad(
+                        tee,
+                        recordTeePad);
+
+                    gst_object_unref(recordTeePad);
+                    recordTeePad = nullptr;
+
+                    gst_object_unref(queueSinkPad);
+
+                    qDebug() << "RECORDING BRANCH DETACHED FROM TEE";
+
+
+                    // Send EOS through recording branch.
+                    // This allows mp4mux to properly finish the MP4.
+                    GstPad *encoderSinkPad =
+                        gst_element_get_static_pad(
+                            recordEncoder,
+                            "sink");
+
+                    gboolean eosSent =
+                        gst_pad_send_event(
+                            encoderSinkPad,
+                            gst_event_new_eos());
+
+                    gst_object_unref(encoderSinkPad);
+
+                    qDebug() << "EOS SENT TO DETACHED RECORDING BRANCH:"
+                             << eosSent;
+
+                    // VERY IMPORTANT:
+                    // Do not continue into START RECORDING below.
                     return;
+                }
+
+
+                // ==========================================
+                // START RECORDING
+                // ==========================================
 
                 qDebug() << "CREATING RECORD QUEUE";
 
-                recordQueue = gst_element_factory_make("queue", "recordQueue");
-                g_object_set(recordQueue,
-                             "leaky", 2,
-                             "max-size-buffers", 30,
-                             nullptr);
+                recordQueue =
+                    gst_element_factory_make(
+                        "queue",
+                        "recordQueue");
 
-                if (!recordQueue) {
+                if (!recordQueue)
+                {
                     qDebug() << "FAILED TO CREATE RECORD QUEUE";
                     return;
                 }
 
-                gst_bin_add(GST_BIN(pipeline), recordQueue);
+                g_object_set(
+                    recordQueue,
+                    "leaky", 2,
+                    "max-size-buffers", 30,
+                    nullptr);
+
+                gst_bin_add(
+                    GST_BIN(pipeline),
+                    recordQueue);
 
                 qDebug() << "RECORD QUEUE CREATED";
 
-                recordEncoder = gst_element_factory_make("mpph264enc", "recordEncoder");
 
-                if (!recordEncoder) {
+                recordEncoder =
+                    gst_element_factory_make(
+                        "mpph264enc",
+                        "recordEncoder");
+
+                if (!recordEncoder)
+                {
                     qDebug() << "FAILED TO CREATE RECORD ENCODER";
                     return;
                 }
 
-                gst_bin_add(GST_BIN(pipeline), recordEncoder);
+                gst_bin_add(
+                    GST_BIN(pipeline),
+                    recordEncoder);
 
                 qDebug() << "RECORD ENCODER ADDED";
 
-                recordParser = gst_element_factory_make("h264parse", "recordParser");
 
-                if (!recordParser) {
+                recordParser =
+                    gst_element_factory_make(
+                        "h264parse",
+                        "recordParser");
+
+                if (!recordParser)
+                {
                     qDebug() << "FAILED TO CREATE RECORD PARSER";
                     return;
                 }
 
-                gst_bin_add(GST_BIN(pipeline), recordParser);
+                gst_bin_add(
+                    GST_BIN(pipeline),
+                    recordParser);
 
                 qDebug() << "RECORD PARSER ADDED";
 
-                recordMuxer = gst_element_factory_make("mp4mux", "recordMuxer");
 
-                if (!recordMuxer) {
+                recordMuxer =
+                    gst_element_factory_make(
+                        "mp4mux",
+                        "recordMuxer");
+
+                if (!recordMuxer)
+                {
                     qDebug() << "FAILED TO CREATE RECORD MUXER";
                     return;
                 }
 
-                gst_bin_add(GST_BIN(pipeline), recordMuxer);
+                gst_bin_add(
+                    GST_BIN(pipeline),
+                    recordMuxer);
 
-                recordFileSink = gst_element_factory_make("filesink", "recordFileSink");
 
-                if (!recordFileSink) {
+                recordFileSink =
+                    gst_element_factory_make(
+                        "filesink",
+                        "recordFileSink");
+
+                if (!recordFileSink)
+                {
                     qDebug() << "FAILED TO CREATE RECORD FILESINK";
                     return;
                 }
 
-                gst_bin_add(GST_BIN(pipeline), recordFileSink);
+                gst_bin_add(
+                    GST_BIN(pipeline),
+                    recordFileSink);
 
-                if (!gst_element_link_many(recordQueue,
-                                           recordEncoder,
-                                           recordParser,
-                                           recordMuxer,
-                                           recordFileSink,
-                                           nullptr)) {
+
+                // Connect:
+                //
+                // queue -> encoder -> parser -> mp4mux -> file
+                //
+                if (!gst_element_link_many(
+                        recordQueue,
+                        recordEncoder,
+                        recordParser,
+                        recordMuxer,
+                        recordFileSink,
+                        nullptr))
+                {
                     qDebug() << "FAILED TO LINK RECORDING ELEMENTS";
                     return;
                 }
 
                 qDebug() << "RECORDING ELEMENTS LINKED";
 
-                QString filename = "/root/camera/videos/" +
-                                   QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss") +
-                                   ".mp4";
 
-                g_object_set(recordFileSink,
-                             "location",
-                             filename.toUtf8().constData(),
-                             nullptr);
+                // Create filename
+                QString filename =
+                    "/root/camera/videos/" +
+                    QDateTime::currentDateTime()
+                        .toString("yyyy-MM-dd_HH-mm-ss") +
+                    ".mp4";
+
+                g_object_set(
+                    recordFileSink,
+                    "location",
+                    filename.toUtf8().constData(),
+                    nullptr);
 
                 qDebug() << "RECORDING FILE:" << filename;
 
-                recordTeePad = gst_element_request_pad_simple(tee, "src_%u");
-                GstPad *queueSinkPad = gst_element_get_static_pad(recordQueue, "sink");
 
-                if (gst_pad_link(recordTeePad, queueSinkPad) != GST_PAD_LINK_OK) {
+                // Ask tee for a new output socket
+                recordTeePad =
+                    gst_element_request_pad_simple(
+                        tee,
+                        "src_%u");
+
+                // Get recording queue input socket
+                GstPad *queueSinkPad =
+                    gst_element_get_static_pad(
+                        recordQueue,
+                        "sink");
+
+                // Connect tee -> recording queue
+                if (gst_pad_link(
+                        recordTeePad,
+                        queueSinkPad) != GST_PAD_LINK_OK)
+                {
                     qDebug() << "FAILED TO LINK TEE TO RECORD QUEUE";
+
                     gst_object_unref(queueSinkPad);
                     return;
                 }
@@ -486,20 +555,21 @@ camera::camera(QWidget *parent)
 
                 qDebug() << "RECORDING BRANCH CONNECTED TO TEE";
 
+
+                // Make new recording elements start running
                 gst_element_sync_state_with_parent(recordQueue);
                 gst_element_sync_state_with_parent(recordEncoder);
                 gst_element_sync_state_with_parent(recordParser);
                 gst_element_sync_state_with_parent(recordMuxer);
                 gst_element_sync_state_with_parent(recordFileSink);
 
+
+                // We are now recording
                 recording = true;
+
+                ui->recordButton->setText("STOP VIDEO");
+
                 qDebug() << "RECORDING STARTED";
-
-                ui->recordButton->setEnabled(false);
-                ui->stopButton->setEnabled(true);
-
-
-
             });
 }
 
