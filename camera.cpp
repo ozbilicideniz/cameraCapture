@@ -34,6 +34,9 @@ camera::camera(QWidget *parent)
     mediaViewer->setGeometry(100, 100, 1700, 800);
     mediaViewer->hide();
 
+    ui->exportDestButton->hide();
+    ui->backButton->hide();
+
     ui->testLineEdit->installEventFilter(this);
 
     this->setAttribute(Qt::WA_TranslucentBackground);
@@ -60,7 +63,9 @@ camera::camera(QWidget *parent)
     ui->cameraButton->setStyleSheet(buttonStyle);
     ui->captureButton->setStyleSheet(buttonStyle);
     ui->recordButton->setStyleSheet(buttonStyle);
-    ui->exportButton->setStyleSheet(buttonStyle);
+    ui->mediaButton->setStyleSheet(buttonStyle);
+    ui->exportDestButton->setStyleSheet(buttonStyle);
+    ui->backButton->setStyle(buttonStyle);
 
     ui->cameraWidget->winId();
 
@@ -185,14 +190,23 @@ camera::camera(QWidget *parent)
                 }
             });
 
-    connect(ui->exportButton, &QPushButton::clicked, this, [this](){
+    connect(ui->mediaButton, &QPushButton::clicked, this, [this](){
 
         if(mediaViewer->isVisible()){
             mediaViewer->hide();
+            ui->cameraButton->show();
+            ui->captureButton->show();
+            ui->recordButton->show();
+            ui->exportDestButton->hide();
         }
         else {
             mediaViewer->show();
             mediaViewer->raise();
+            ui->cameraButton->hide();
+            ui->captureButton->hide();
+            ui->recordButton->hide();
+            ui->exportDestButton->show();
+            ui->backButton->show();
         }
     });
 
@@ -247,6 +261,14 @@ camera::camera(QWidget *parent)
 
                 gst_buffer_unmap(buffer, &map);
                 gst_sample_unref(photo);
+            });
+
+    connect(ui->backButton, &QPushButton::clicked, this, [this](){
+        mediaViewer->hide();
+        ui->cameraButton->show();
+        ui->captureButton->show();
+        ui->recordButton->show();
+        ui->exportDestButton->hide();
             });
 
     connect(ui->recordButton, &QPushButton::clicked,
@@ -493,10 +515,6 @@ camera::camera(QWidget *parent)
                     recordFileSink);
 
 
-                // Connect:
-                //
-                // queue -> encoder -> parser -> mp4mux -> file
-                //
                 if (!gst_element_link_many(
                         recordQueue,
                         recordEncoder,

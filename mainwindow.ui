@@ -62,9 +62,16 @@
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="exportButton">
+      <widget class="QPushButton" name="mediaButton">
        <property name="text">
-        <string>EXPORT</string>
+        <string>MEDIA</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="exportDestButton">
+       <property name="text">
+        <string>EXPORT TO...</string>
        </property>
       </widget>
      </item>
@@ -94,6 +101,19 @@
     padding: 10px;
     font-size: 28px;
 }</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="backButton">
+    <property name="geometry">
+     <rect>
+      <x>1711</x>
+      <y>50</y>
+      <width>181</width>
+      <height>29</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>BACK</string>
     </property>
    </widget>
   </widget>
