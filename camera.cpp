@@ -17,6 +17,7 @@
 #include <QFileDialog>
 #include "keyboard.h"
 #include "mediaviewer.h"
+#include <QTimer>
 
 
 camera::camera(QWidget *parent)
@@ -24,6 +25,7 @@ camera::camera(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    //ui->cameraButton->setFocus();
 
     keyboard = new KeyboardWidget(this);
     mediaViewer = new MediaViewer(this);
@@ -31,13 +33,14 @@ camera::camera(QWidget *parent)
     keyboard->setGeometry(500, 300, 900, 350);
     keyboard->hide();
 
-    mediaViewer->setGeometry(100, 100, 1700, 800);
+    mediaViewer->setGeometry(100, 100, 1800, 800);
     mediaViewer->hide();
 
     ui->exportDestButton->hide();
     ui->backButton->hide();
+    ui->previewButton->hide();
 
-    ui->testLineEdit->installEventFilter(this);
+    //ui->testLineEdit->installEventFilter(this);
 
     this->setAttribute(Qt::WA_TranslucentBackground);
     ui->centralwidget->setAttribute(Qt::WA_TranslucentBackground);
@@ -65,16 +68,19 @@ camera::camera(QWidget *parent)
     ui->recordButton->setStyleSheet(buttonStyle);
     ui->mediaButton->setStyleSheet(buttonStyle);
     ui->exportDestButton->setStyleSheet(buttonStyle);
-    ui->backButton->setStyle(buttonStyle);
+    ui->backButton->setStyleSheet(buttonStyle);
+    ui->previewButton->setStyleSheet(buttonStyle);
 
     ui->cameraWidget->winId();
 
     QPlatformNativeInterface *native =
         QGuiApplication::platformNativeInterface();
 
+
     void *surface = native->nativeResourceForWindow(
         "surface",
         ui->cameraWidget->windowHandle());
+
 
     void *display = native->nativeResourceForIntegration(
         "display");
@@ -90,6 +96,7 @@ camera::camera(QWidget *parent)
 
     qDebug() << "Main Wayland surface:" << mainSurface;
 
+
     qDebug() << "Viewfinder windowHandle:"
              << ui->cameraWidget->windowHandle();
 
@@ -98,6 +105,7 @@ camera::camera(QWidget *parent)
 
     qDebug() << "Viewfinder geometry:"
              << ui->cameraWidget->geometry();
+
 
     qDebug() << "Viewfinder winId:"
              << ui->cameraWidget->winId();
@@ -198,6 +206,9 @@ camera::camera(QWidget *parent)
             ui->captureButton->show();
             ui->recordButton->show();
             ui->exportDestButton->hide();
+            ui->previewButton->hide();
+            ui->backButton->hide();
+            ui->mediaButton->show();
         }
         else {
             mediaViewer->show();
@@ -207,6 +218,8 @@ camera::camera(QWidget *parent)
             ui->recordButton->hide();
             ui->exportDestButton->show();
             ui->backButton->show();
+            ui->previewButton->show();
+            ui->mediaButton->hide();
         }
     });
 
@@ -264,24 +277,33 @@ camera::camera(QWidget *parent)
             });
 
     connect(ui->backButton, &QPushButton::clicked, this, [this](){
+
+        if (mediaViewer->getCurrentPath() != "/root/camera") {
+            // We're inside Photos or Videos
+            mediaViewer->loadPath("/root/camera");
+            return;
+        }
+
+        // We're already at /root/camera, so leave MediaViewer
         mediaViewer->hide();
+
         ui->cameraButton->show();
         ui->captureButton->show();
         ui->recordButton->show();
+        ui->mediaButton->show();
+
         ui->exportDestButton->hide();
-            });
+        ui->previewButton->hide();
+        ui->backButton->hide();
+    });
 
     connect(ui->recordButton, &QPushButton::clicked,
             this, [this]()
             {
-                // ==========================================
-                // STOP RECORDING
-                // ==========================================
                 if (recording)
                 {
                     qDebug() << "STOPPING RECORDING";
 
-                    // Prevent another click while MP4 is finishing
                     ui->recordButton->setEnabled(false);
                     ui->recordButton->setText("SAVING...");
 
@@ -589,21 +611,36 @@ camera::camera(QWidget *parent)
 
                 qDebug() << "RECORDING STARTED";
             });
-}
 
+    QTimer::singleShot(50, this, [this]() {
+        ui->cameraButton->parentWidget()->repaint();
+    });
+}
+/*
 bool camera::eventFilter(QObject *obj, QEvent *event)
 {
     if (obj == ui->testLineEdit &&
         (event->type() == QEvent::MouseButtonPress ||
          event->type() == QEvent::FocusIn))
     {
-        keyboard->setTarget(ui->testLineEdit);
-        keyboard->show();
-        keyboard->raise();
+        //keyboard->setTarget(ui->testLineEdit);
+
+        if (!keyboard->isVisible()) {
+            keyboard->show();
+            keyboard->raise();
+        }
+
+        qDebug() << "Keyboard event:"
+                 << event->type()
+                 << "visible:"
+                 << keyboard->isVisible();
+
+        return true;
     }
 
     return QMainWindow::eventFilter(obj, event);
 }
+*/
 
 camera::~camera()
 {
