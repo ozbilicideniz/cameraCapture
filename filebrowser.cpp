@@ -33,24 +33,34 @@ FileBrowser::FileBrowser(QWidget *parent)
     connect(folderList, &QListWidget::itemClicked,
             this, [this](QListWidgetItem *item) {
 
-                QString folderName = item->text();
                 QDir dir(currentPath);
-                QString newPath = dir.filePath(folderName);
+                QString newPath = dir.filePath(item->text());
 
-                if (folderName == "..") {
-                    dir.cdUp();
-                    loadDirectory(dir.absolutePath());
-                }
-                else {
-                    loadDirectory(newPath);
-                }
+                loadDirectory(newPath);
             });
+
+    QString buttonStyle =
+        "QPushButton {"
+        "    background-color: #303030;"
+        "    color: white;"
+        "    border: 2px solid #707070;"
+        "    border-radius: 6px;"
+        "    font-size: 18px;"
+        "    font-weight: bold;"
+        "}"
+        "QPushButton:pressed {"
+        "    background-color: #505050;"
+        "}";
+
     QHBoxLayout *buttonLayout = new QHBoxLayout();
     QPushButton *cancelButton = new QPushButton("CANCEL");
     QPushButton *exportButton = new QPushButton("EXPORT HERE");
     buttonLayout->addWidget(cancelButton);
+    cancelButton->setStyleSheet(buttonStyle);
     buttonLayout->addWidget(exportButton);
+    exportButton->setStyleSheet(buttonStyle);
     mainLayout->addLayout(buttonLayout);
+
 
     connect(cancelButton, &QPushButton::clicked,
             this, [this]() {
@@ -69,6 +79,10 @@ void FileBrowser::loadDirectory(const QString &path){
     pathLabel->setText(currentPath);
     QStringList newList = dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
     folderList->clear();
-    folderList->addItem("..");
     folderList->addItems(newList);
+}
+
+QString FileBrowser::getCurrentPath() const
+{
+    return currentPath;
 }

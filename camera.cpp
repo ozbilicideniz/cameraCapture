@@ -18,6 +18,7 @@
 #include "keyboard.h"
 #include "mediaviewer.h"
 #include <QTimer>
+#include "usbdetector.h"
 
 
 camera::camera(QWidget *parent)
@@ -25,7 +26,6 @@ camera::camera(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    //ui->cameraButton->setFocus();
 
     keyboard = new KeyboardWidget(this);
     mediaViewer = new MediaViewer(this);
@@ -33,14 +33,23 @@ camera::camera(QWidget *parent)
     keyboard->setGeometry(500, 300, 900, 350);
     keyboard->hide();
 
-    mediaViewer->setGeometry(100, 100, 1800, 800);
+    mediaViewer->setGeometry(60, 100, 1800, 800);
     mediaViewer->hide();
+
+    connect(mediaViewer, &MediaViewer::selectionChanged,
+            this, [this](int count) {
+
+                ui->exportDestButton->setEnabled(count >= 1);
+                ui->previewButton->setEnabled(count == 1);
+            });
+
+    usbScreen = new usbdetector(this);
+    usbScreen->setGeometry(60, 100, 1800, 800);
+    usbScreen->hide();
 
     ui->exportDestButton->hide();
     ui->backButton->hide();
     ui->previewButton->hide();
-
-    //ui->testLineEdit->installEventFilter(this);
 
     this->setAttribute(Qt::WA_TranslucentBackground);
     ui->centralwidget->setAttribute(Qt::WA_TranslucentBackground);
@@ -216,11 +225,22 @@ camera::camera(QWidget *parent)
             ui->cameraButton->hide();
             ui->captureButton->hide();
             ui->recordButton->hide();
-            ui->exportDestButton->show();
             ui->backButton->show();
-            ui->previewButton->show();
             ui->mediaButton->hide();
+            ui->exportDestButton->show();
+            ui->previewButton->show();
+
+            int count = mediaViewer->getSelectedCount();
+            ui->exportDestButton->setEnabled(count >= 1);
+            ui->previewButton->setEnabled(count == 1);
+
         }
+    });
+
+    connect(ui->exportDestButton, &QPushButton::clicked,
+            this, [this](){
+        usbScreen->show();
+        usbScreen->raise();
     });
 
     connect(ui->captureButton, &QPushButton::clicked,
@@ -276,26 +296,38 @@ camera::camera(QWidget *parent)
                 gst_sample_unref(photo);
             });
 
-    connect(ui->backButton, &QPushButton::clicked, this, [this](){
+    connect(ui->backButton, &QPushButton::clicked,
+            this, [this]() {
 
-        if (mediaViewer->getCurrentPath() != "/root/camera") {
-            // We're inside Photos or Videos
-            mediaViewer->loadPath("/root/camera");
-            return;
-        }
+                if (usbScreen->isVisible()) {
 
-        // We're already at /root/camera, so leave MediaViewer
-        mediaViewer->hide();
+                    if (usbScreen->handleBack()) {
+                        return;
+                    }
 
-        ui->cameraButton->show();
-        ui->captureButton->show();
-        ui->recordButton->show();
-        ui->mediaButton->show();
+                    usbScreen->hide();
+                    mediaViewer->show();
+                    mediaViewer->raise();
 
-        ui->exportDestButton->hide();
-        ui->previewButton->hide();
-        ui->backButton->hide();
-    });
+                    return;
+                }
+
+                if (mediaViewer->getCurrentPath() != "/root/camera") {
+                    mediaViewer->loadPath("/root/camera");
+                    return;
+                }
+
+                mediaViewer->hide();
+
+                ui->cameraButton->show();
+                ui->captureButton->show();
+                ui->recordButton->show();
+                ui->mediaButton->show();
+
+                ui->exportDestButton->hide();
+                ui->previewButton->hide();
+                ui->backButton->hide();
+            });
 
     connect(ui->recordButton, &QPushButton::clicked,
             this, [this]()
@@ -393,8 +425,6 @@ camera::camera(QWidget *parent)
 
                     gst_object_unref(fileSinkPad);
 
-
-                    // Detach recording branch from tee
                     GstPad *queueSinkPad =
                         gst_element_get_static_pad(
                             recordQueue,
@@ -415,9 +445,6 @@ camera::camera(QWidget *parent)
 
                     qDebug() << "RECORDING BRANCH DETACHED FROM TEE";
 
-
-                    // Send EOS through recording branch.
-                    // This allows mp4mux to properly finish the MP4.
                     GstPad *encoderSinkPad =
                         gst_element_get_static_pad(
                             recordEncoder,
@@ -433,8 +460,6 @@ camera::camera(QWidget *parent)
                     qDebug() << "EOS SENT TO DETACHED RECORDING BRANCH:"
                              << eosSent;
 
-                    // VERY IMPORTANT:
-                    // Do not continue into START RECORDING below.
                     return;
                 }
 
@@ -616,31 +641,6 @@ camera::camera(QWidget *parent)
         ui->cameraButton->parentWidget()->repaint();
     });
 }
-/*
-bool camera::eventFilter(QObject *obj, QEvent *event)
-{
-    if (obj == ui->testLineEdit &&
-        (event->type() == QEvent::MouseButtonPress ||
-         event->type() == QEvent::FocusIn))
-    {
-        //keyboard->setTarget(ui->testLineEdit);
-
-        if (!keyboard->isVisible()) {
-            keyboard->show();
-            keyboard->raise();
-        }
-
-        qDebug() << "Keyboard event:"
-                 << event->type()
-                 << "visible:"
-                 << keyboard->isVisible();
-
-        return true;
-    }
-
-    return QMainWindow::eventFilter(obj, event);
-}
-*/
 
 camera::~camera()
 {

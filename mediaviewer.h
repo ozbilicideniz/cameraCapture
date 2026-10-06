@@ -15,6 +15,10 @@ public:
     explicit MediaViewer(QWidget *parent = nullptr);
     QString getCurrentPath() const;
     void loadPath(const QString &path);
+    int getSelectedCount() const;
+
+signals:
+    void selectionChanged(int count);
 
 private:
     QGridLayout *mediaGrid;

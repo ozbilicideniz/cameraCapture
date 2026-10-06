@@ -12,14 +12,16 @@ SOURCES += \
     camera.cpp \
     cameradisplaywidget.cpp \
     keyboard.cpp \
-    mediaviewer.cpp
+    mediaviewer.cpp \
+    usbdetector.cpp
 
 HEADERS += \
     camera.h \
     cameradisplaywidget.h \
     filebrowser.h \
     keyboard.h \
-    mediaviewer.h
+    mediaviewer.h \
+    usbdetector.h
 
 FORMS += mainwindow.ui
 

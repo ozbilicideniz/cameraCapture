@@ -1,4 +1,5 @@
 #include "mediaviewer.h"
+#include "filebrowser.h"
 #include <QGridLayout>
 #include <QDir>
 #include <QPixmap>
@@ -36,6 +37,11 @@ MediaViewer::MediaViewer(QWidget *parent)
 
     loadPath("/root/camera");
 
+}
+
+int MediaViewer::getSelectedCount() const
+{
+    return selectedFiles.size();
 }
 
 void MediaViewer::loadPath(const QString &path)
@@ -107,6 +113,11 @@ void MediaViewer::loadPath(const QString &path)
             QLabel *thumbnail = new QLabel();
             QPushButton *photocard = new QPushButton();
             photocard->setCheckable(true);
+
+            if (selectedFiles.contains(fullPath)) {
+                photocard->setChecked(true);
+            }
+
             photocard->setFixedSize(280, 190);
             QVBoxLayout *photoLayout = new QVBoxLayout(photocard);
             QLabel *nameLabel = new QLabel(photoName);
@@ -125,8 +136,9 @@ void MediaViewer::loadPath(const QString &path)
                             selectedFiles.removeAll(fullPath);
                         }
 
-                    });
+                        emit selectionChanged(selectedFiles.size());
 
+                });
 
             photoLayout->addWidget(thumbnail, 0, Qt::AlignHCenter);
             photoLayout->addWidget(nameLabel, 0, Qt::AlignHCenter);
@@ -153,6 +165,7 @@ void MediaViewer::loadPath(const QString &path)
 
         }
     }
+
     else if (currentPath == "/root/camera/videos") {
 
         int index = 0;
@@ -170,6 +183,11 @@ void MediaViewer::loadPath(const QString &path)
 
             QPushButton *videocard = new QPushButton();
             videocard->setCheckable(true);
+
+            if (selectedFiles.contains(fullPath)) {
+                videocard->setChecked(true);
+            }
+
             videocard->setFixedSize(280, 190);
             QVBoxLayout *videoLayout = new QVBoxLayout(videocard);
             QLabel *nameLabel = new QLabel(videoName);
@@ -188,6 +206,7 @@ void MediaViewer::loadPath(const QString &path)
                             selectedFiles.removeAll(fullPath);
                         }
 
+                        emit selectionChanged(selectedFiles.size());
                     });
 
             videocard->setStyleSheet(

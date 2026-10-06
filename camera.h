@@ -3,6 +3,8 @@
 
 #include <QMainWindow>
 #include <gst/gst.h>
+#include "usbdetector.h"
+#include <QString>
 
 QT_BEGIN_NAMESPACE
 
@@ -23,9 +25,6 @@ class camera : public QMainWindow
 public:
     explicit camera(QWidget *parent = nullptr);
     ~camera() override;
-
-protected:
-    //bool eventFilter(QObject *obj, QEvent *event) override;
 
 private:
     Ui::MainWindow *ui;
@@ -50,6 +49,7 @@ private:
 
     bool recording = false;
     bool exportClicked = false;
+    usbdetector *usbScreen;
 };
 
 #endif // CAMERA_H

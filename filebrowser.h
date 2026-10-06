@@ -12,13 +12,14 @@ class FileBrowser : public QWidget
 
 public:
     explicit FileBrowser(QWidget *parent = nullptr);
+    void loadDirectory(const QString &path);
+    QString getCurrentPath() const;
 
 private:
     QLabel *pathLabel;
     QListWidget *folderList;
     QString currentPath;
-
-    void loadDirectory(const QString &path);
+    QString usbRoot;
 };
 
 #endif
