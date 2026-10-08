@@ -10,7 +10,7 @@
 
 KeyboardWidget::KeyboardWidget(QWidget *parent)
     : QWidget(parent),
-    targetEdit(nullptr),
+    keyboardText(nullptr),
     shiftEnabled(false),
     dragging(false)
 {
@@ -29,7 +29,7 @@ KeyboardWidget::KeyboardWidget(QWidget *parent)
     // ROW 1
     QHBoxLayout *row1 = new QHBoxLayout;
 
-    const QString row1Keys = "QWERTYUIOPĞÜ";
+    const QString row1Keys = "QWERTYUIOP";
 
     for (const QChar &c : row1Keys) {
         QPushButton *button = createKey(QString(c));
@@ -39,7 +39,7 @@ KeyboardWidget::KeyboardWidget(QWidget *parent)
     // ROW 2
     QHBoxLayout *row2 = new QHBoxLayout;
 
-    const QString row2Keys = "ASDFGHJKLŞİ";
+    const QString row2Keys = "ASDFGHJKL";
 
     for (const QChar &c : row2Keys) {
         QPushButton *button = createKey(QString(c));
@@ -49,60 +49,78 @@ KeyboardWidget::KeyboardWidget(QWidget *parent)
     // ROW 3
     QHBoxLayout *row3 = new QHBoxLayout;
 
-    QPushButton *shiftButton = new QPushButton("SHIFT");
+    QPushButton *capsLockButton = new QPushButton("CAPS");
 
-    connect(shiftButton, &QPushButton::clicked,
+    connect(capsLockButton, &QPushButton::clicked,
             this, [this]() {
                 shiftEnabled = !shiftEnabled;
             });
 
-    row3->addWidget(shiftButton);
+    row3->addWidget(capsLockButton);
 
-    const QString row3Keys = "ZXCVBNMÖÇ";
+    const QString row3Keys = "ZXCVBNM";
 
     for (const QChar &c : row3Keys) {
         QPushButton *button = createKey(QString(c));
         row3->addWidget(button);
     }
 
-    QPushButton *backspaceButton = new QPushButton("BACK");
+    QPushButton *deleteButton = new QPushButton("DEL");
 
-    connect(backspaceButton, &QPushButton::clicked,
+    connect(deleteButton, &QPushButton::clicked,
             this, [this]() {
-                if (targetEdit)
-                    targetEdit->backspace();
+                if (keyboardText)
+                    keyboardText->backspace();
             });
 
-    row3->addWidget(backspaceButton);
+    row3->addWidget(deleteButton);
 
     // ROW 4
     QHBoxLayout *row4 = new QHBoxLayout;
 
     QPushButton *numbersButton = createKey("123");
     QPushButton *spaceButton = new QPushButton("SPACE");
-    QPushButton *dotButton = createKey(".");
-    QPushButton *commaButton = createKey(",");
+    QPushButton *dotButton = createKey("  .  ");
+    QPushButton *commaButton = createKey("  ,  ");
     QPushButton *closeButton = new QPushButton("CLOSE");
+    QPushButton *saveButton = new QPushButton("SAVE");
 
     connect(spaceButton, &QPushButton::clicked,
             this, [this]() {
-                if (targetEdit)
-                    targetEdit->insert(" ");
+                if (keyboardText)
+                    keyboardText->insert(" ");
             });
 
     connect(closeButton, &QPushButton::clicked,
             this, [this]() {
                 hide();
 
-                if (targetEdit)
-                    targetEdit->clearFocus();
+                if (keyboardText)
+                    keyboardText->clearFocus();
+            });
+
+    connect(saveButton, &QPushButton::clicked,
+            this, [this]() {
+                if (!keyboardText)
+                    return;
+
+                QString text = keyboardText->text().trimmed();
+
+                if (text.isEmpty())
+                    return;
+
+                emit textConfirmed(text);
+
+                hide();
+                keyboardText->clearFocus();
             });
 
     row4->addWidget(numbersButton);
-    row4->addWidget(spaceButton, 4);
+    row4->addWidget(spaceButton, 3);
     row4->addWidget(dotButton);
     row4->addWidget(commaButton);
     row4->addWidget(closeButton);
+    row4->addWidget(saveButton);
 
     mainLayout->addLayout(row1);
     mainLayout->addLayout(row2);
@@ -150,7 +168,7 @@ QPushButton *KeyboardWidget::createKey(const QString &text)
 
 void KeyboardWidget::insertCharacter(const QString &text)
 {
-    if (!targetEdit)
+    if (!keyboardText)
         return;
 
     QString character = text;
@@ -158,11 +176,12 @@ void KeyboardWidget::insertCharacter(const QString &text)
     if (text.length() == 1 && text[0].isLetter()) {
         if (shiftEnabled)
             character = text.toUpper();
+
         else
             character = text.toLower();
     }
 
-    targetEdit->insert(character);
+    keyboardText->insert(character);
 
     // Normal keyboard behaviour: Shift affects one character.
     if (shiftEnabled)
@@ -202,5 +221,5 @@ void KeyboardWidget::mouseReleaseEvent(QMouseEvent *event)
 
 void KeyboardWidget::setTarget(QLineEdit *lineEdit)
 {
-    targetEdit = lineEdit;
+    keyboardText = lineEdit;
 }

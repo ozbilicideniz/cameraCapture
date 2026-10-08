@@ -15,7 +15,6 @@
 #include <QDateTime>
 #include <QEvent>
 #include <QFileDialog>
-#include "keyboard.h"
 #include "mediaviewer.h"
 #include <QTimer>
 #include "usbdetector.h"
@@ -27,12 +26,7 @@ camera::camera(QWidget *parent)
 {
     ui->setupUi(this);
 
-    keyboard = new KeyboardWidget(this);
     mediaViewer = new MediaViewer(this);
-
-    keyboard->setGeometry(500, 300, 900, 350);
-    keyboard->hide();
-
     mediaViewer->setGeometry(60, 100, 1800, 800);
     mediaViewer->hide();
 
@@ -124,6 +118,7 @@ camera::camera(QWidget *parent)
 
     QDir().mkpath("/root/camera/photos");
     QDir().mkpath("/root/camera/videos");
+    QDir().mkpath("/root/camera/videos/thumbnails");
 
     gst_init(nullptr, nullptr);
 
@@ -238,10 +233,20 @@ camera::camera(QWidget *parent)
     });
 
     connect(ui->exportDestButton, &QPushButton::clicked,
-            this, [this](){
-        usbScreen->show();
-        usbScreen->raise();
-    });
+            this, [this]() {
+
+                usbScreen->sendFilesToBrowser(
+                    mediaViewer->getSelectedFiles()
+                    );
+
+                usbScreen->show();
+                usbScreen->raise();
+            });
+
+    connect(ui->previewButton, &QPushButton::clicked,
+            this, [this]() {
+            mediaViewer->previewPhoto();
+            });
 
     connect(ui->captureButton, &QPushButton::clicked,
             this, [this, photoSink]()
@@ -330,7 +335,7 @@ camera::camera(QWidget *parent)
             });
 
     connect(ui->recordButton, &QPushButton::clicked,
-            this, [this]()
+            this, [this, photoSink]()
             {
                 if (recording)
                 {
@@ -578,11 +583,14 @@ camera::camera(QWidget *parent)
 
 
                 // Create filename
+                QString timestamp =
+                    QDateTime::currentDateTime()
+                        .toString("yyyy-MM-dd_HH-mm-ss");
                 QString filename =
                     "/root/camera/videos/" +
-                    QDateTime::currentDateTime()
-                        .toString("yyyy-MM-dd_HH-mm-ss") +
+                    timestamp +
                     ".mp4";
+                QString thumbnailName = "/root/camera/videos/thumbnails/" + timestamp + ".jpg";
 
                 g_object_set(
                     recordFileSink,
@@ -631,6 +639,49 @@ camera::camera(QWidget *parent)
 
                 // We are now recording
                 recording = true;
+
+                QTimer::singleShot(500, this, [this, thumbnailName, photoSink]() {
+                    GstSample *thumbnail =
+                        gst_app_sink_try_pull_sample(
+                            GST_APP_SINK(photoSink),
+                            GST_SECOND);
+                    if (!thumbnail) {
+                        qDebug() << "THUMBNAIL GENERATION FAILED";
+                        return;
+                    }
+                    GstBuffer *buffer =
+                        gst_sample_get_buffer(thumbnail);
+                    GstMapInfo map;
+
+                    if (!gst_buffer_map(
+                            buffer,
+                            &map,
+                            GST_MAP_READ)) {
+
+                        qDebug() << "PHOTO: could not map buffer";
+                        gst_sample_unref(thumbnail);
+                        return;
+                    }
+
+                    QFile file(thumbnailName);
+
+                    if (file.open(QIODevice::WriteOnly)) {
+
+                        file.write(
+                            reinterpret_cast<const char *>(map.data),
+                            static_cast<qint64>(map.size));
+
+                        file.close();
+
+                        qDebug() << "THUMBNAIL SAVED:" << thumbnailName;
+                    }
+                    else {
+                        qDebug() << "THUMBNAIL: could not open" << thumbnailName;
+                    }
+
+                    gst_buffer_unmap(buffer, &map);
+                    gst_sample_unref(thumbnail);
+                });
 
                 ui->recordButton->setText("STOP VIDEO");
 

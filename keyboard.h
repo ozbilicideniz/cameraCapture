@@ -21,8 +21,11 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
 
+signals:
+    void textConfirmed(const QString &text);
+
 private:
-    QLineEdit *targetEdit;
+    QLineEdit *keyboardText;
     bool shiftEnabled;
 
     bool dragging;

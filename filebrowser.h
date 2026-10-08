@@ -2,6 +2,8 @@
 #define FILEBROWSER_H
 
 #include <QWidget>
+#include <QLineEdit>
+#include "keyboard.h"
 
 class QListWidget;
 class QLabel;
@@ -14,12 +16,16 @@ public:
     explicit FileBrowser(QWidget *parent = nullptr);
     void loadDirectory(const QString &path);
     QString getCurrentPath() const;
+    void setFilesToExport(const QStringList &files);
 
 private:
     QLabel *pathLabel;
     QListWidget *folderList;
     QString currentPath;
     QString usbRoot;
+    QStringList filesToExport;
+    QLineEdit *folderName;
+    KeyboardWidget *keyboard;
 };
 
 #endif

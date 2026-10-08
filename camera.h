@@ -26,9 +26,9 @@ public:
     explicit camera(QWidget *parent = nullptr);
     ~camera() override;
 
+
 private:
     Ui::MainWindow *ui;
-    KeyboardWidget *keyboard;
     MediaViewer *mediaViewer;
 
     bool cameraRunning = false;

@@ -1,5 +1,3 @@
-#include "mediaviewer.h"
-#include "filebrowser.h"
 #include <QGridLayout>
 #include <QDir>
 #include <QPixmap>
@@ -10,6 +8,10 @@
 #include <QVBoxLayout>
 #include <QDebug>
 #include <QPushButton>
+#include <QFileInfo>
+#include <QStackedWidget>
+#include "mediaviewer.h"
+#include "filebrowser.h"
 
 MediaViewer::MediaViewer(QWidget *parent)
     : QWidget(parent)
@@ -17,8 +19,21 @@ MediaViewer::MediaViewer(QWidget *parent)
     setAttribute(Qt::WA_StyledBackground, true);
     setStyleSheet("MediaViewer { background-color: #232323; }");
 
-    QVBoxLayout *mainLayout = new QVBoxLayout(this);
-    QScrollArea *scrollArea = new QScrollArea(this);
+    mediaStack = new QStackedWidget(this);
+
+    mediaViewerPage = new QWidget(mediaStack);
+    previewPage = new QWidget(mediaStack);
+
+    mediaStack->addWidget(mediaViewerPage);
+    mediaStack->addWidget(previewPage);
+
+    QVBoxLayout *outerLayout = new QVBoxLayout(this);
+    outerLayout->addWidget(mediaStack);
+
+
+    QVBoxLayout *mainLayout = new QVBoxLayout(mediaViewerPage);
+
+    QScrollArea *scrollArea = new QScrollArea(mediaViewerPage);
     QWidget *gridContainer = new QWidget();
 
     mediaGrid = new QGridLayout(gridContainer);
@@ -30,13 +45,24 @@ MediaViewer::MediaViewer(QWidget *parent)
     scrollArea->setWidgetResizable(true);
 
     currentPath = "/root/camera";
-    pathLabel = new QLabel(currentPath);
+
+    pathLabel = new QLabel(currentPath, mediaViewerPage);
 
     mainLayout->addWidget(pathLabel);
     mainLayout->addWidget(scrollArea);
 
-    loadPath("/root/camera");
 
+    QVBoxLayout *previewLayout = new QVBoxLayout(previewPage);
+
+    previewLabel = new QLabel(previewPage);
+    nameLabel = new QLabel(previewPage);
+
+    previewLayout->addWidget(previewLabel);
+    previewLayout->addWidget(nameLabel);
+
+    mediaStack->setCurrentWidget(mediaViewerPage);
+
+    loadPath("/root/camera");
 }
 
 int MediaViewer::getSelectedCount() const
@@ -222,6 +248,8 @@ void MediaViewer::loadPath(const QString &path)
                 );
 
             QLabel *thumbnail = new QLabel("VIDEO");
+
+
             thumbnail->setFixedSize(250, 141);
             thumbnail->setAlignment(Qt::AlignCenter);
             thumbnail->setStyleSheet(
@@ -229,6 +257,8 @@ void MediaViewer::loadPath(const QString &path)
                 "color: white;"
                 "font-size: 30px;"
                 );
+
+
 
             videoLayout->addWidget(thumbnail, 0, Qt::AlignHCenter);
             videoLayout->addWidget(nameLabel, 0, Qt::AlignHCenter);
@@ -242,9 +272,55 @@ void MediaViewer::loadPath(const QString &path)
     }
 }
 
+
+QStringList MediaViewer::getSelectedFiles() const
+{
+    return selectedFiles;
+}
+
 QString MediaViewer::getCurrentPath() const
 {
     return currentPath;
+}
+
+void MediaViewer::previewPhoto()
+{
+    if (mediaStack->currentWidget() == previewPage) {
+        mediaStack->setCurrentWidget(mediaViewerPage);
+        loadPath("/root/camera/photos");
+        return;
+    }
+
+    QString selectedPath = selectedFiles[0];
+
+    QPixmap pixmap(selectedPath);
+    previewLabel->setPixmap(pixmap);
+    previewLabel->setAlignment(Qt::AlignCenter);
+
+    QFileInfo fileInfo(selectedPath);
+    nameLabel->setText(fileInfo.fileName());
+
+    mediaStack->setCurrentWidget(previewPage);
+}
+
+void MediaViewer::previewVideo(){
+    if (mediaStack->currentWidget() == previewPage) {
+        mediaStack->setCurrentWidget(mediaViewerPage);
+        loadPath("/root/camera/videos");
+        return;
+    }
+
+    QString selectedPath = selectedFiles[0];
+
+    //QPixmap pixmap(selectedPath);
+    //previewLabel->setPixmap(pixmap);
+    //previewLabel->setAlignment(Qt::AlignCenter);
+
+    QFileInfo fileInfo(selectedPath);
+    nameLabel->setText(fileInfo.fileName());
+
+    mediaStack->setCurrentWidget(previewPage);
+
 }
 
 void MediaViewer::clearGrid()

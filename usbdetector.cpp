@@ -28,9 +28,6 @@ usbdetector::usbdetector(QWidget *parent)
     stack->addWidget(usbPage);
     stack->addWidget(fileBrowser);
 
-    stack->addWidget(usbPage);
-    stack->addWidget(fileBrowser);
-
     QVBoxLayout *outerLayout = new QVBoxLayout(this);
     outerLayout->addWidget(stack);
 
@@ -150,6 +147,11 @@ QStringList usbdetector::findUsb()
     }
 
     return usbPaths;
+}
+
+void usbdetector::sendFilesToBrowser(const QStringList &files)
+{
+    fileBrowser->setFilesToExport(files);
 }
 
 bool usbdetector::handleBack()
