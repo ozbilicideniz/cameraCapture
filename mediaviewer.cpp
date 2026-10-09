@@ -13,6 +13,8 @@
 #include "mediaviewer.h"
 #include "filebrowser.h"
 
+
+
 MediaViewer::MediaViewer(QWidget *parent)
     : QWidget(parent)
 {
@@ -128,8 +130,7 @@ void MediaViewer::loadPath(const QString &path)
 
         QStringList photos = photoDir.entryList(
             QStringList() << "*.jpg" << "*.jpeg",
-            QDir::Files
-            );
+            QDir::Files);
 
         for (const QString &photoName : photos) {
 
@@ -258,8 +259,6 @@ void MediaViewer::loadPath(const QString &path)
                 "font-size: 30px;"
                 );
 
-
-
             videoLayout->addWidget(thumbnail, 0, Qt::AlignHCenter);
             videoLayout->addWidget(nameLabel, 0, Qt::AlignHCenter);
 
@@ -311,16 +310,44 @@ void MediaViewer::previewVideo(){
     }
 
     QString selectedPath = selectedFiles[0];
-
-    //QPixmap pixmap(selectedPath);
-    //previewLabel->setPixmap(pixmap);
-    //previewLabel->setAlignment(Qt::AlignCenter);
-
     QFileInfo fileInfo(selectedPath);
     nameLabel->setText(fileInfo.fileName());
 
     mediaStack->setCurrentWidget(previewPage);
 
+}
+
+void MediaViewer::deletePhoto()
+{
+    for (const QString &item : selectedFiles) {
+        QString extension = QFileInfo(item).suffix().toLower();
+
+        if (extension == "jpg" || extension == "jpeg") {
+            QFile::remove(item);
+        }
+    }
+    selectedFiles.clear();
+    loadPath("/root/camera/photos");
+}
+
+void MediaViewer::deleteVideo()
+{
+    for (const QString &item : selectedFiles) {
+        QFileInfo info(item);
+        QString extension = info.suffix().toLower();
+
+        if (extension == "mp4") {
+            QString thumbnail =
+                "/root/camera/videos/thumbnails/" +
+                info.completeBaseName() + ".jpg";
+
+            QFile::remove(item);
+            QFile::remove(thumbnail);
+        }
+    }
+
+    selectedFiles.clear();
+    loadPath("/root/camera/videos");
 }
 
 void MediaViewer::clearGrid()

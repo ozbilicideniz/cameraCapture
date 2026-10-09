@@ -20,6 +20,8 @@ public:
     QStringList getSelectedFiles() const;
     void previewPhoto();
     void previewVideo();
+    void deletePhoto();
+    void deleteVideo();
 
 signals:
     void selectionChanged(int count);

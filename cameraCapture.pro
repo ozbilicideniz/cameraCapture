@@ -29,3 +29,6 @@ PKGCONFIG += gstreamer-1.0
 PKGCONFIG += gstreamer-video-1.0
 PKGCONFIG += gstreamer-app-1.0
 PKGCONFIG += gstreamer-wayland-1.0
+
+RESOURCES += \
+    resources.qrc

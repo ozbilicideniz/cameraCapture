@@ -7,6 +7,7 @@
 
 class QListWidget;
 class QLabel;
+class QGridLayout;
 
 class FileBrowser : public QWidget
 {
@@ -17,6 +18,7 @@ public:
     void loadDirectory(const QString &path);
     QString getCurrentPath() const;
     void setFilesToExport(const QStringList &files);
+    void clearGrid();
 
 private:
     QLabel *pathLabel;
@@ -26,6 +28,8 @@ private:
     QStringList filesToExport;
     QLineEdit *folderName;
     KeyboardWidget *keyboard;
+    QGridLayout *fileGrid;
+
 };
 
 #endif

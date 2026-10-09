@@ -44,6 +44,7 @@ camera::camera(QWidget *parent)
     ui->exportDestButton->hide();
     ui->backButton->hide();
     ui->previewButton->hide();
+    ui->deleteButton->hide();
 
     this->setAttribute(Qt::WA_TranslucentBackground);
     ui->centralwidget->setAttribute(Qt::WA_TranslucentBackground);
@@ -73,6 +74,7 @@ camera::camera(QWidget *parent)
     ui->exportDestButton->setStyleSheet(buttonStyle);
     ui->backButton->setStyleSheet(buttonStyle);
     ui->previewButton->setStyleSheet(buttonStyle);
+    ui->deleteButton->setStyleSheet(buttonStyle);
 
     ui->cameraWidget->winId();
 
@@ -213,6 +215,7 @@ camera::camera(QWidget *parent)
             ui->previewButton->hide();
             ui->backButton->hide();
             ui->mediaButton->show();
+            ui->deleteButton->hide();
         }
         else {
             mediaViewer->show();
@@ -224,11 +227,23 @@ camera::camera(QWidget *parent)
             ui->mediaButton->hide();
             ui->exportDestButton->show();
             ui->previewButton->show();
+            ui->deleteButton->show();
 
             int count = mediaViewer->getSelectedCount();
             ui->exportDestButton->setEnabled(count >= 1);
             ui->previewButton->setEnabled(count == 1);
 
+        }
+    });
+
+    connect(ui->deleteButton, &QPushButton::clicked,
+            this, [this](){
+        QString currentPath = mediaViewer->getCurrentPath();
+        if (currentPath == "/root/camera/photos"){
+            mediaViewer->deletePhoto();
+        }
+        else if (currentPath == "/root/camera/videos"){
+            mediaViewer->deleteVideo();
         }
     });
 
